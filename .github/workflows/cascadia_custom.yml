@@ -1,0 +1,121 @@
+name: Build Custom Cascadia Font
+
+on:
+  workflow_dispatch:
+    inputs:
+      os:
+        description: 'Operating System of runner'
+        required: true
+        type: choice
+        options: [macOS, Linux]
+        default: macOS
+      web_fonts:
+        description: 'Web fonts'
+        type: boolean
+        default: false
+      no_nerd_fonts:
+        description: 'NerdFonts'
+        type: boolean
+        default: false
+      no_mono:
+        description: 'Mono'
+        type: boolean
+        default: false
+      no_powerline:
+        description: 'PowerLine'
+        type: boolean
+        default: false
+
+jobs:
+  build:
+    runs-on: ${{ github.event.inputs.os == 'macOS' && 'macos-latest' || 'ubuntu-latest' }}
+    steps:
+      - name: Clone Cascadia Code repository
+        run: |
+          git clone --depth=1 https://github.com/microsoft/cascadia-code
+      - name: Install GNU grep and sed and override system utilities
+        if: runner.os == 'macOS'
+        run: |
+          brew install gnu-sed grep
+          sudo ln -sf "$(brew --prefix gnu-sed)/libexec/gnubin/sed" /usr/local/bin/sed
+          sudo ln -sf "$(brew --prefix grep)/libexec/gnubin/grep" /usr/local/bin/grep
+      - name: Extract version from build.py
+        id: extract-version
+        run: |
+          if [ -f cascadia-code/build.py ]; then
+            VERSION_YEAR_MONTH=$(grep -oP 'VERSION_YEAR_MONTH = \K\d+' cascadia-code/build.py)
+            VERSION_DAY=$(grep -oP 'VERSION_DAY = \K\d+' cascadia-code/build.py)
+            if [ -n "$VERSION_YEAR_MONTH" ] && [ -n "$VERSION_DAY" ]; then
+              VERSION="$VERSION_YEAR_MONTH.$VERSION_DAY"
+              echo "Found version in build.py: $VERSION"
+              echo "VERSION=$VERSION" >> $GITHUB_ENV
+            else
+              CURRENT_DATE=$(date +'%y%m.%d')
+              echo "Version not found in build.py, using current date: $CURRENT_DATE"
+              echo "VERSION=$CURRENT_DATE" >> $GITHUB_ENV
+            fi
+          else
+            CURRENT_DATE=$(date +'%y%m.%d')
+            echo "build.py not found, using current date: $CURRENT_DATE"
+            echo "VERSION=$CURRENT_DATE" >> $GITHUB_ENV
+          fi
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Setup virtual environment and install dependencies
+        working-directory: cascadia-code
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then brew install ttfautohint; else sudo apt-get install -y --no-install-recommends ttfautohint; fi
+          python3 -m venv fonttools-venv
+          . fonttools-venv/bin/activate
+          pip3 install -r requirements.txt
+          pip3 install git+https://github.com/daltonmaag/vttLib.git
+      - name: Remove plus_plus ligatures
+        working-directory: cascadia-code
+        run: |
+          find ./sources -name "*.fea" | while read file; do
+            echo "Processing $file..."
+            if grep -q "plus_plus.liga" "$file" || grep -q "lookup plus_plus" "$file" || grep -q "#sub plus plus by" "$file"; then
+              sed -i -z 's/lookup plus_plus {[^}]*} plus_plus;//g' "$file"
+              sed -i -z 's/lookup plus_plus_plus {[^}]*} plus_plus_plus;//g' "$file"
+              sed -i -E '/#sub plus plus plus by plus_plus_plus\.liga;/d' "$file"
+              sed -i -E '/#sub plus plus by plus_plus\.liga;/d' "$file"
+              sed -i 's/ plus_plus.liga plus_plus_plus.liga//g' "$file"
+              echo "Modified $file"
+            else
+              echo "No changes needed for $file"
+            fi
+          done
+      - name: Build custom font
+        working-directory: cascadia-code
+        run: |
+          . fonttools-venv/bin/activate
+          BUILD_ARGS="-S"
+          if ${{ inputs.web_fonts }}; then
+            BUILD_ARGS="$BUILD_ARGS -W"
+          fi
+          if ! ${{ inputs.no_nerd_fonts }}; then
+            BUILD_ARGS="$BUILD_ARGS -NF"
+          fi
+          if ! ${{ inputs.no_mono }}; then
+            BUILD_ARGS="$BUILD_ARGS -M"
+          fi
+          if ! ${{ inputs.no_powerline }}; then
+            BUILD_ARGS="$BUILD_ARGS -P"
+          fi
+          echo "Building with arguments: $BUILD_ARGS"
+          python3 build.py $BUILD_ARGS
+      - name: Prepare files for artifact
+        run: |
+          mkdir -p artifacts/CascadiaCustom_${{ env.VERSION }}
+          cp -r cascadia-code/build/* artifacts/CascadiaCustom_${{ env.VERSION }}/
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CascadiaCustom_${{ env.VERSION }}
+          path: artifacts/CascadiaCustom_${{ env.VERSION }}
+          compression-level: 8
+          retention-days: 60

@@ -1,0 +1,85 @@
+name: Build Custom Maple Font
+
+on:
+  workflow_dispatch:
+    inputs:
+      os:
+        description: 'Operating System of runner'
+        required: true
+        type: choice
+        options: [macOS, Linux]
+        default: macOS
+
+jobs:
+  build:
+    runs-on: ${{ github.event.inputs.os == 'macOS' && 'macos-latest' || 'ubuntu-latest' }}
+    steps:
+      - name: Clone Maple repository (variable branch)
+        run: |
+          git clone --depth 1 -b variable https://github.com/subframe7536/maple-font.git
+
+      - name: Install GNU grep and sed and override system utilities
+        if: runner.os == 'macOS'
+        run: |
+          brew install gnu-sed grep
+          sudo ln -sf "$(brew --prefix gnu-sed)/libexec/gnubin/sed" /usr/local/bin/sed
+          sudo ln -sf "$(brew --prefix grep)/libexec/gnubin/grep" /usr/local/bin/grep
+
+      - name: Extract version from build.py
+        id: extract-version
+        run: |
+          if [ -f maple-font/build.py ]; then
+            VERSION=$(grep -oP 'FONT_VERSION = "\K[^"]+' maple-font/build.py)
+            if [ -n "$VERSION" ]; then
+              echo "Found version in build.py: $VERSION"
+              echo "VERSION=$VERSION" >> $GITHUB_ENV
+            else
+              CURRENT_DATE=$(date +'%m.%Y')
+              echo "Version not found in build.py, using current date: $CURRENT_DATE"
+              echo "VERSION=$CURRENT_DATE" >> $GITHUB_ENV
+            fi
+          else
+            CURRENT_DATE=$(date +'%m.%Y')
+            echo "build.py not found, using current date: $CURRENT_DATE"
+            echo "VERSION=$CURRENT_DATE" >> $GITHUB_ENV
+          fi
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: './maple-font/requirements.txt'
+
+      - name: Install dependencies
+        working-directory: maple-font
+        run: |
+          pip install -r requirements.txt
+
+      - name: Remove operator ligatures (++, +++, ==) from feature files
+        working-directory: maple-font
+        run: |
+          for file in source/features/{regular,italic}.fea; do
+              sed -i \
+                  -e '/^[[:space:]]*# ++$/,/^[[:space:]]*} plus_plus.liga;$/d' \
+                  -e '/^[[:space:]]*# +++$/,/^[[:space:]]*} plus_plus_plus.liga;$/d' \
+                  -e '/^[[:space:]]*# ==$/,/^[[:space:]]*} equal_equal.liga;$/d' \
+                  "$file"
+          done
+
+      - name: Build custom font
+        working-directory: maple-font
+        run: python build.py --feat cv01,cv02,cv03,cv34,cv35,cv36,zero --apply-fea-file --no-cn --no-nerd-font
+
+      - name: Prepare files for artifact
+        run: |
+          mkdir -p artifacts/MapleCustom_${{ env.VERSION }}
+          cp -r maple-font/fonts/TTF-AutoHint maple-font/fonts/TTF artifacts/MapleCustom_${{ env.VERSION }}/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MapleCustom_${{ env.VERSION }}
+          path: artifacts/MapleCustom_${{ env.VERSION }}
+          compression-level: 8
+          retention-days: 60
