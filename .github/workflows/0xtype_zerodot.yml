@@ -1,0 +1,55 @@
+name: Build 0xType (ZeroDot) Font
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          repository: 0xType/0xProto
+
+      - name: Extract version
+        id: extract-version
+        run: |
+          PLIST_FILE="sources/0xProto.glyphspackage/fontinfo.plist"
+          VERSION_PART=""
+          if [ -f "$PLIST_FILE" ]; then
+            MAJOR=$(grep -oP '(?<=versionMajor = )\d+' "$PLIST_FILE")
+            MINOR=$(grep -oP '(?<=versionMinor = )\d+' "$PLIST_FILE")
+            if [ -n "$MAJOR" ] && [ -n "$MINOR" ]; then
+              VERSION_PART="_v${MAJOR}.${MINOR}"
+            fi
+          fi
+          echo "VERSION_PART=$VERSION_PART" >> $GITHUB_ENV
+
+      - name: Replace zero glyph
+        run: |
+          echo "ewpnbHlwaG5hbWUgPSB6ZXJvOwpsYXllcnMgPSAoCnsKbGF5ZXJJZCA9IG0wMTsKc2hhcGVzID0gKAp7CmNsb3NlZCA9IDE7Cm5vZGVzID0gKAooNTEwLC0xNixvKSwKKDU2NSwxNDMsbyksCig1NjUsMzU1LGNzKSwKKDU2NSw1NjcsbyksCig1MTAsNzI2LG8pLAooMzEyLDcyNixjcyksCigxMTUsNzI2LG8pLAooNTUsNTY3LG8pLAooNTUsMzU1LGNzKSwKKDU1LDE0MyxvKSwKKDExNSwtMTYsbyksCigzMTIsLTE2LGNzKQopOwp9LAp7CmNsb3NlZCA9IDE7Cm5vZGVzID0gKAooMTcyLDczLG8pLAooMTUzLDE5NSxvKSwKKDE1MywzNTYsY3MpLAooMTUzLDUxNixvKSwKKDE3Miw2MzcsbyksCigzMTIsNjM3LGNzKSwKKDQ1Miw2MzcsbyksCig0NjcsNTE2LG8pLAooNDY3LDM1NixjcyksCig0NjcsMTk1LG8pLAooNDUyLDczLG8pLAooMzEyLDczLGNzKQopOwp9LAp7CmNsb3NlZCA9IDE7Cm5vZGVzID0gKAooMzQ5LDI4NixvKSwKKDM3OSwzMTYsbyksCigzNzksMzU1LGNzKSwKKDM3OSwzOTMsbyksCigzNDksNDI0LG8pLAooMzEwLDQyNCxjcyksCigyNzMsNDI0LG8pLAooMjQxLDM5MyxvKSwKKDI0MSwzNTUsY3MpLAooMjQxLDMxNixvKSwKKDI3MywyODYsbyksCigzMTAsMjg2LGNzKQopOwp9Cik7CndpZHRoID0gNjIwOwp9LAp7CmxheWVySWQgPSBtMDAyOwpzaGFwZXMgPSAoCnsKY2xvc2VkID0gMTsKbm9kZXMgPSAoCig1MTMsLTE2LG8pLAooNTcxLDE0MyxvKSwKKDU3MSwzNTUsY3MpLAooNTcxLDU2NyxvKSwKKDUxMyw3MjYsbyksCigzMTIsNzI2LGNzKSwKKDExMSw3MjYsbyksCig0OSw1NjcsbyksCig0OSwzNTUsY3MpLAooNDksMTQzLG8pLAooMTExLC0xNixvKSwKKDMxMiwtMTYsY3MpCik7Cn0sCnsKY2xvc2VkID0gMTsKbm9kZXMgPSAoCigxOTAsMTEyLG8pLAooMTc5LDIwOSxvKSwKKDE3OSwzNTYsY3MpLAooMTc5LDQ5MixvKSwKKDE5OCw1OTgsbyksCigzMTIsNTk4LGNzKSwKKDQzMyw1OTgsbyksCig0NDEsNTAyLG8pLAooNDQxLDM1NixjcyksCig0NDEsMjE5LG8pLAooNDI1LDExMixvKSwKKDMxMiwxMTIsY3MpCik7Cn0sCnsKY2xvc2VkID0gMTsKbm9kZXMgPSAoCigzNTQsMjg2LG8pLAooMzg3LDMxOSxvKSwKKDM4NywzNjMsY3MpLAooMzg3LDQwNSxvKSwKKDM1NCw0NDAsbyksCigzMTAsNDQwLGNzKSwKKDI2OSw0NDAsbyksCigyMzMsNDA1LG8pLAooMjMzLDM2MyxjcyksCigyMzMsMzE5LG8pLAooMjY5LDI4NixvKSwKKDMxMCwyODYsY3MpCik7Cn0KKTsKd2lkdGggPSA2MjA7Cn0KKTsKdW5pY29kZSA9IDQ4Owp9" | base64 -d > sources/0xProto.glyphspackage/glyphs/zero.glyph
+          echo "ewpnbHlwaG5hbWUgPSB6ZXJvOwpsYXllcnMgPSAoCnsKYXNzb2NpYXRlZE1hc3RlcklkID0gbTAxOwpsYXllcklkID0gIjkzMTk2QUY2LUVEMDktNDA0My04QkFGLTdCRkNFM0UxNzMzOCI7Cm5hbWUgPSAiRmViIDE0LCAyNCBhdCAxOToyOSI7CnNoYXBlcyA9ICgKewpjbG9zZWQgPSAxOwpub2RlcyA9ICgKKDUxMCwtMTYsbyksCig1NjUsMTQzLG8pLAooNTY1LDM1NSxjcyksCig1NjUsNTY3LG8pLAooNTEwLDcyNixvKSwKKDMxMiw3MjYsY3MpLAooMTE1LDcyNixvKSwKKDU1LDU2NyxvKSwKKDU1LDM1NSxjcyksCig1NSwxNDMsbyksCigxMTUsLTE2LG8pLAooMzEyLC0xNixjcykKKTsKfSwKewpjbG9zZWQgPSAxOwpub2RlcyA9ICgKKDE3Miw3MyxvKSwKKDE1MywxOTUsbyksCigxNTMsMzU2LGNzKSwKKDE1Myw1MTYsbyksCigxNzIsNjM3LG8pLAooMzEyLDYzNyxjcyksCig0NTIsNjM3LG8pLAooNDY3LDUxNixvKSwKKDQ2NywzNTYsY3MpLAooNDY3LDE5NSxvKSwKKDQ1Miw3MyxvKSwKKDMxMiw3MyxjcykKKTsKfSwKewpjbG9zZWQgPSAxOwpub2RlcyA9ICgKKDIwOSwxMDgsbCksCig0OTUsNjAzLGwpLAooNDE1LDYwMixsKSwKKDEyOSwxMDgsbCkKKTsKfQopOwp3aWR0aCA9IDYyMDsKfSwKewpsYXllcklkID0gbTAxOwpuYW1lID0gSXRhbGljOwpzaGFwZXMgPSAoCnsKY2xvc2VkID0gMTsKbm9kZXMgPSAoCig0NzUsLTE2LG8pLAooNTQzLDEyNSxvKSwKKDU3OCwzNDMsY3MpLAooNjEyLDU1NSxvKSwKKDU3MSw3MjYsbyksCigzODQsNzI2LGNzKSwKKDE3OCw3MjYsbyksCigxMDMsNTg1LG8pLAooNjgsMzY3LGNzKSwKKDM0LDE1NSxvKSwKKDgyLC0xNixvKSwKKDI2OSwtMTYsY3MpCik7Cn0sCnsKY2xvc2VkID0gMTsKbm9kZXMgPSAoCigxMzUsNzMsbyksCigxNDAsMTk5LG8pLAooMTY1LDM2MCxjcyksCigxOTAsNTIwLG8pLAooMjMzLDYzNyxvKSwKKDM2OSw2MzcsY3MpLAooNTE1LDYzNyxvKSwKKDUwNiw1MTIsbyksCig0ODEsMzUyLGNzKSwKKDQ1NiwxOTEsbyksCig0MTMsNzMsbyksCigyODEsNzMsY3MpCik7Cn0sCnsKY2xvc2VkID0gMTsKbm9kZXMgPSAoCigzNzEuNDgzLCAyODUuNSxvKSwKKDM4Ny40ODMsIDMxOC41LG8pLAooMzkxLjQ4MywgMzU0LjUsY3MpLAooMzk1LjQ4MywgMzkxLjUsbyksCigzNjguNDgzLCA0MjQuNSxvKSwKKDMyNy40ODMsIDQyNC41LGNzKSwKKDI4Ni40ODMsIDQyNC41LG8pLAooMjU5LjQ4MywgMzkxLjUsbyksCigyNTUuNDgzLCAzNTQuNSxjcyksCigyNTEuNDgzLCAzMTguNSxvKSwKKDI3Ny40ODMsIDI4NS41LG8pLAooMzE4LjQ4MywgMjg1LjUsY3MpCik7Cn0KKTsKdmlzaWJsZSA9IDE7CndpZHRoID0gNjIwOwp9Cik7CnVuaWNvZGUgPSA0ODsKfQ==" | base64 -d > sources/0xProto-Italic.glyphspackage/glyphs/zero.glyph
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential git python3-pip
+          make setup
+
+      - name: Build font
+        run: make build
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: 0xType-ZeroDot${{ env.VERSION_PART }}
+          path: fonts/
+          compression-level: 8
+          retention-days: 60
